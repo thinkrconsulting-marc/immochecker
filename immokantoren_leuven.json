@@ -1,0 +1,318 @@
+{
+  "beschrijving": "Scraper-config voor immokantoren met woningaanbod in regio Leuven. Per kantoor: aanbod-URL, gedetecteerd CMS/platform, render-type en scraper-groep. Kantoren zijn geclusterd per platform zodat je per groep EEN scraper-template kan bouwen i.p.v. 21 losse.",
+  "gegenereerd_op": "2026-06-24",
+  "doelgemeenten": [
+    {"naam": "Leuven", "postcode": "3000"},
+    {"naam": "Holsbeek", "postcode": "3220"},
+    {"naam": "Rotselaar", "postcode": "3110"},
+    {"naam": "Herent", "postcode": "3020"},
+    {"naam": "Linden", "postcode": "3210"},
+    {"naam": "Lubbeek", "postcode": "3210"},
+    {"naam": "Pellenberg", "postcode": "3212"}
+  ],
+
+  "scraper_groepen": {
+    "fw4_whise": {
+      "omschrijving": "Sites gebouwd door FW4 (fw4.immo), data uit Whise-backend. Server-rendered HTML, identieke structuur en URL-patronen. Een template werkt voor alle kantoren in deze groep.",
+      "render": "server-side (geen JS nodig voor lijst)",
+      "detail_url_patroon": "/{type}-te-koop-in-{gemeente}/{whiseId}  (whiseId = 7 cijfers)",
+      "detail_link_regex": "/(huis|villa|woning|gelijkvloerse-woning|eengezinswoning|appartement|opbrengsteigendom|grond|garage|kantoor|commercieel|gebouw-voor-gemengd-gebruik)-te-koop-in-[a-z0-9-]+/\\d{6,7}",
+      "type_filter": "pad-gebaseerd: /nl/te-koop/woningen | /appartementen | /gronden | ...",
+      "gemeente_filter": "dropdown op de lijstpagina; doelgemeenten verschijnen als ze aanbod hebben",
+      "paginatie": "'Toon meer panden' (load-more). Tel via 'X / Y panden getoond'. Scroll/klik tot alle geladen, of zoek de onderliggende AJAX-call.",
+      "aanpak": "1) open aanbod-URL 2) klik 'toon meer' tot einde 3) verzamel alle detail-links via regex 4) bezoek elk detail voor velden (prijs, adres, slaapkamers, m2, EPC)"
+    },
+    "cms_assets_platform": {
+      "omschrijving": "Onbekende leverancier met kenmerkende 'cms-assets/theme/logoUrl?hash=' signatuur. Gedeeld door De Dijle, Anthonis en Immo-M. Een template voor alle drie.",
+      "render": "server-side (te verifieren of lijst volledig in HTML staat)",
+      "type_filter": "pad-gebaseerd: /nl/te-koop/woningen | /nl/woningen | /nl/appartementen | ...",
+      "paginatie": "te bepalen bij scrapen (waarschijnlijk pagina-param of load-more)",
+      "aanpak": "Detail-links verzamelen van lijstpagina, daarna per pand de velden ophalen. Selectors een keer bepalen op De Dijle en hergebruiken voor Anthonis + Immo-M."
+    },
+    "skarabee": {
+      "omschrijving": "Skarabee RP6 - grote Belgische immo-CMS. Assets via staticnew.skarabee.net. Stabiele, voorspelbare HTML.",
+      "render": "server-side",
+      "type_filter": "pad-gebaseerd: /te-koop/woningen | /appartementen | /gronden | ...",
+      "opmerking": "Skarabee heeft een vaste themastructuur (Views/Sites/{thema}); selectors zijn herbruikbaar voor elk Skarabee-kantoor dat je later toevoegt."
+    },
+    "wordpress_wpml": {
+      "omschrijving": "WordPress + WPML met vastgoed-plugin. Let op: pagina meldt expliciet dat JS nodig is - lijst wordt mogelijk client-side geladen.",
+      "render": "deels client-side (JS) - Playwright met page.waitForSelector aangeraden",
+      "filter": "query-param: ?state=te-koop  (+ type/gemeente filters in de UI)",
+      "aanpak": "Render met Playwright (niet met kale HTTP-fetch), wacht op de pandkaarten, scrape dan."
+    },
+    "statamic": {
+      "omschrijving": "Statamic CMS (custom build, agency Salamander). Assets op DigitalOcean Spaces CDN.",
+      "render": "server-side (Statamic levert meestal volledige HTML)",
+      "filter": "pad-gebaseerd: /te-koop"
+    },
+    "nationaal_portaal": {
+      "omschrijving": "Landelijke ketenplatforms met centraal aanbod van alle franchisekantoren. NIET filteren op kantoor maar op GEMEENTE. Vaak een onderliggende API/JSON.",
+      "render": "SPA (React/Gatsby/Drupal) - JS-rendering of API-call nodig",
+      "aanpak": "Filter rechtstreeks op de 7 doelgemeenten i.p.v. het hele land te scrapen. Zoek de XHR/JSON-endpoint in de netwerktab - sneller en stabieler dan DOM-scraping."
+    },
+    "custom_onbekend": {
+      "omschrijving": "Maatwerk of niet-herkend CMS. Per site selectors bepalen.",
+      "render": "te verifieren per site"
+    }
+  },
+
+  "aantal": 21,
+  "kantoren": [
+    {
+      "id": 1,
+      "naam": "Immo 3000",
+      "basis_url": "https://www.immo3000.be",
+      "aanbod_urls": ["https://www.immo3000.be/te-koop?type=DWELLING"],
+      "cms_platform": "onbekend (web_fetch geblokkeerd door robots.txt)",
+      "render": "onbekend",
+      "scraper_groep": "custom_onbekend",
+      "robots_fetch": "geblokkeerd",
+      "opmerking": "Dekt expliciet Leuven, Linden, Lubbeek, Herent, Holsbeek, Pellenberg. Type-param ?type=DWELLING. Platform handmatig verifieren in browser."
+    },
+    {
+      "id": 2,
+      "naam": "Immo GVE",
+      "basis_url": "https://www.immogve.be",
+      "aanbod_urls": ["https://www.immogve.be/te-koop/woningen"],
+      "cms_platform": "FW4 + Whise",
+      "render": "server-side",
+      "scraper_groep": "fw4_whise",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Doelgemeenten in dropdown: Herent, Heverlee, Kessel-Lo, Leuven, Lubbeek, Pellenberg, Rotselaar. 80 panden, load-more."
+    },
+    {
+      "id": 3,
+      "naam": "Immo Liv'it",
+      "basis_url": "https://www.immolivit.be",
+      "aanbod_urls": ["https://www.immolivit.be/nl/te-koop/woningen"],
+      "cms_platform": "FW4 + Whise",
+      "render": "server-side",
+      "scraper_groep": "fw4_whise",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Identieke structuur aan GVE. Doelgemeenten o.a. Herent, Leuven, Rotselaar."
+    },
+    {
+      "id": 4,
+      "naam": "Covas Immo",
+      "basis_url": "https://www.covas.be",
+      "aanbod_urls": ["https://www.covas.be/te-koop"],
+      "cms_platform": "onbekend (web_fetch geblokkeerd door robots.txt)",
+      "render": "onbekend",
+      "scraper_groep": "custom_onbekend",
+      "robots_fetch": "geblokkeerd",
+      "opmerking": "Detail-URL-patroon uit eerdere zoek: /detail?id={id}. Focus Leuven-centrum + Heverlee. Handmatig verifieren."
+    },
+    {
+      "id": 5,
+      "naam": "Immo Jan Stas",
+      "basis_url": "https://immojanstas.be",
+      "aanbod_urls": ["https://immojanstas.be/nl/kopen?type=3"],
+      "cms_platform": "custom / onbekend (geen generator-signatuur)",
+      "render": "server-side (te verifieren)",
+      "scraper_groep": "custom_onbekend",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Type-param filtering: ?type=3 = woningen/villa's, ?type=1 = appartementen, ?type=2 = gronden. Kantoren in Leuven, Tienen, Rotselaar."
+    },
+    {
+      "id": 6,
+      "naam": "Immodrome",
+      "basis_url": "https://www.immodrome.be",
+      "aanbod_urls": ["https://www.immodrome.be/nl/te-koop/woningen"],
+      "cms_platform": "FW4 + Whise",
+      "render": "server-side",
+      "scraper_groep": "fw4_whise",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Lokaal kantoor Lubbeek. Sorteer-URLs: /sort/import_date | /sort/price | /sort/city_nl."
+    },
+    {
+      "id": 7,
+      "naam": "Immo Surplus",
+      "basis_url": "https://www.immosurplus.be",
+      "aanbod_urls": ["https://www.immosurplus.be/te-koop/woningen/"],
+      "cms_platform": "custom / onbekend (geen generator-signatuur)",
+      "render": "server-side (te verifieren)",
+      "scraper_groep": "custom_onbekend",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Pad-gebaseerd met trailing slash: /te-koop/woningen/ | /appartementen/ | /bouwgronden/. Holsbeek + regio Leuven."
+    },
+    {
+      "id": 8,
+      "naam": "Immo Copandi",
+      "basis_url": "https://copandi.be",
+      "aanbod_urls": ["https://copandi.be/te-koop"],
+      "cms_platform": "Statamic (custom, Salamander)",
+      "render": "server-side",
+      "scraper_groep": "statamic",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Kantoren o.a. Rotselaar, Herent, Tremelo. Assets op DigitalOcean CDN."
+    },
+    {
+      "id": 9,
+      "naam": "Marnix Vastgoed",
+      "basis_url": "https://www.marnixvastgoed.be",
+      "aanbod_urls": ["https://www.marnixvastgoed.be/te-koop/woningen"],
+      "cms_platform": "Skarabee RP6",
+      "render": "server-side",
+      "scraper_groep": "skarabee",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Kessel-Lo + regio Leuven. Pad-filtering /te-koop/woningen | /appartementen | /gronden | /investeringsvastgoed | /bedrijfsvastgoed."
+    },
+    {
+      "id": 10,
+      "naam": "Viva Immo",
+      "basis_url": "https://viva-immo.be",
+      "aanbod_urls": ["https://viva-immo.be/nl/panden/te-koop"],
+      "cms_platform": "custom (Tripleclick bvba)",
+      "render": "server-side (meta-document-state: static)",
+      "scraper_groep": "custom_onbekend",
+      "robots_fetch": "toegestaan"
+    },
+    {
+      "id": 11,
+      "naam": "Homies",
+      "basis_url": "https://homies.be",
+      "aanbod_urls": ["https://homies.be/panden/?transaction_type=1"],
+      "cms_platform": "onbekend (web_fetch geblokkeerd door robots.txt)",
+      "render": "onbekend",
+      "scraper_groep": "custom_onbekend",
+      "robots_fetch": "geblokkeerd",
+      "opmerking": "Query-filter ?transaction_type=1 = te koop. Regio Leuven. Handmatig verifieren."
+    },
+    {
+      "id": 12,
+      "naam": "Immo De Dijle",
+      "basis_url": "https://immodedijle.be",
+      "aanbod_urls": ["https://immodedijle.be/nl/woningen"],
+      "cms_platform": "cms-assets platform (gedeeld met Anthonis + Immo-M)",
+      "render": "server-side (te verifieren)",
+      "scraper_groep": "cms_assets_platform",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Leuven/Heverlee. Pad-filtering /nl/woningen | /appartementen | /gronden | /garages | /handelspanden | /opbrengsteigendom."
+    },
+    {
+      "id": 13,
+      "naam": "BOND immo",
+      "basis_url": "https://www.bondimmo.be",
+      "aanbod_urls": ["https://www.bondimmo.be/nl/te-koop/woningen"],
+      "cms_platform": "FW4 + Whise",
+      "render": "server-side",
+      "scraper_groep": "fw4_whise",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Meest complete doelgemeente-dekking gezien: Holsbeek, Herent, Leuven, Linden, Lubbeek, Pellenberg, Rotselaar allemaal in dropdown. Kantoor Leuven."
+    },
+    {
+      "id": 14,
+      "naam": "Immo-M",
+      "basis_url": "https://immo-m.be",
+      "aanbod_urls": ["https://immo-m.be/nl/te-koop?type=3"],
+      "cms_platform": "cms-assets platform (gedeeld met De Dijle + Anthonis)",
+      "render": "server-side (te verifieren)",
+      "scraper_groep": "cms_assets_platform",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Herent. Type-param ?type=3. Zelfde CMS-template als De Dijle/Anthonis."
+    },
+    {
+      "id": 15,
+      "naam": "Gilles Vastgoed",
+      "basis_url": "https://www.gillesvastgoed.be",
+      "aanbod_urls": ["https://www.gillesvastgoed.be/nl/Onze-panden/"],
+      "cms_platform": "onbekend (web_fetch geblokkeerd door robots.txt)",
+      "render": "onbekend",
+      "scraper_groep": "custom_onbekend",
+      "robots_fetch": "geblokkeerd",
+      "opmerking": "Herent. Handmatig verifieren in browser."
+    },
+    {
+      "id": 16,
+      "naam": "BVM Vastgoed",
+      "basis_url": "https://www.bvm-vastgoed.be",
+      "aanbod_urls": ["https://www.bvm-vastgoed.be/nl/te-koop/woningen"],
+      "cms_platform": "FW4 + Whise",
+      "render": "server-side",
+      "scraper_groep": "fw4_whise",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Leuven. Meertalig (/nl /fr /en). Zelfde template als GVE/Livit/BOND/Immodrome."
+    },
+    {
+      "id": 17,
+      "naam": "Jes Vastgoed",
+      "basis_url": "https://jesvastgoed.be",
+      "aanbod_urls": ["https://jesvastgoed.be/eigendommen/?state=te-koop"],
+      "cms_platform": "WordPress + WPML",
+      "render": "client-side (JS vereist)",
+      "scraper_groep": "wordpress_wpml",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Bierbeek + regio Leuven. LET OP: gebruik Playwright met waitForSelector - kale HTTP-fetch geeft geen panden."
+    },
+    {
+      "id": 18,
+      "naam": "Century 21 Connect",
+      "basis_url": "https://www.century21.be",
+      "aanbod_urls": ["https://www.century21.be/nl/zoeken?listingType=FOR_SALE"],
+      "cms_platform": "Gatsby (React) - nationaal portaal",
+      "render": "SPA (JS / API)",
+      "scraper_groep": "nationaal_portaal",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Landelijk aanbod van alle C21-kantoren. Filter op de 7 doelgemeenten via het zoekformulier; zoek de onderliggende JSON-API in de netwerktab."
+    },
+    {
+      "id": 19,
+      "naam": "ERA Vandendries",
+      "basis_url": "https://www.era.be",
+      "aanbod_urls": [
+        "https://www.era.be/nl/te-koop",
+        "https://www.era.be/nl/nieuwbouw"
+      ],
+      "cms_platform": "Drupal 10 - nationaal portaal",
+      "render": "SPA / server (Drupal)",
+      "scraper_groep": "nationaal_portaal",
+      "robots_fetch": "toegestaan",
+      "opmerking": "6359 panden nationaal. Filter per gemeente via pad: /nl/te-koop/{gemeente} (bv. /nl/te-koop/herent, /nl/te-koop/leuven). Doe dit voor elk van de 7 doelgemeenten."
+    },
+    {
+      "id": 20,
+      "naam": "Heylen Vastgoed",
+      "basis_url": "https://www.heylenvastgoed.be",
+      "aanbod_urls": [
+        "https://www.heylenvastgoed.be/kopen",
+        "https://www.heylenvastgoed.be/nieuwbouw"
+      ],
+      "cms_platform": "Next.js (React) + Strapi-backend",
+      "render": "SPA (JS / API)",
+      "scraper_groep": "nationaal_portaal",
+      "robots_fetch": "toegestaan",
+      "opmerking": "LET OP: focus op provincie Antwerpen, Limburg en Waasland - waarschijnlijk weinig/geen aanbod in jouw doelgemeenten. Lage prioriteit. Strapi-API (admin.heylenvastgoed.be) levert mogelijk JSON."
+    },
+    {
+      "id": 21,
+      "naam": "Immo Anthonis",
+      "basis_url": "https://immoanthonis.be",
+      "aanbod_urls": ["https://immoanthonis.be/nl/te-koop/woningen"],
+      "cms_platform": "cms-assets platform (gedeeld met De Dijle + Immo-M)",
+      "render": "server-side (te verifieren)",
+      "scraper_groep": "cms_assets_platform",
+      "robots_fetch": "toegestaan",
+      "opmerking": "Regio Leuven. Pad-filtering /nl/te-koop/woningen | /appartementen-en-studios | /opbrengsteigendommen | /handel-en-kantoor."
+    }
+  ],
+
+  "samenvatting_per_groep": {
+    "fw4_whise": ["Immo GVE", "Immo Liv'it", "Immodrome", "BOND immo", "BVM Vastgoed"],
+    "cms_assets_platform": ["Immo De Dijle", "Immo-M", "Immo Anthonis"],
+    "skarabee": ["Marnix Vastgoed"],
+    "wordpress_wpml": ["Jes Vastgoed"],
+    "statamic": ["Immo Copandi"],
+    "nationaal_portaal": ["Century 21 Connect", "ERA Vandendries", "Heylen Vastgoed"],
+    "custom_onbekend": ["Immo 3000", "Covas Immo", "Immo Jan Stas", "Immo Surplus", "Viva Immo", "Homies", "Gilles Vastgoed"]
+  },
+
+  "aanbevolen_aanpak": [
+    "Bouw eerst de FW4-template (dekt 5 kantoren met identieke structuur, server-side, makkelijkst).",
+    "Daarna de cms-assets-template (dekt 3 kantoren).",
+    "Nationale portalen (ERA, C21) per gemeente filteren i.p.v. heel BE; zoek hun JSON-API.",
+    "Jes Vastgoed apart: vereist JS-rendering (Playwright waitForSelector).",
+    "7 custom/onbekende kantoren handmatig selectors bepalen; 4 daarvan blokkeren web_fetch via robots.txt maar zijn met Playwright meestal wel te scrapen - respecteer hun robots.txt/voorwaarden.",
+    "Heylen heeft lage prioriteit (verkeerde regio)."
+  ]
+}
