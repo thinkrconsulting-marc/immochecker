@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { MongoClient } from 'mongodb';
 import { ScraperOrchestrator } from './orchestrator';
 import { FW4WhiseAdapter } from './adapters/fw4Adapter';
+import { CMSAssetsAdapter } from './adapters/cmsAssetsAdapter';
 import { KantoorConfig } from './types';
 
 dotenv.config();
@@ -56,6 +57,15 @@ async function main(): Promise<void> {
     ));
   }
 
+  const cmsAssetsKantoren = kantoren.filter((k) => k.scraper_groep === 'cms_assets_platform');
+  for (const kantoor of cmsAssetsKantoren) {
+    orchestrator.registerAdapter(kantoor.id.toString(), new CMSAssetsAdapter(
+      kantoor,
+      USER_AGENT,
+      SCRAPE_DELAY_MS
+    ));
+  }
+
   const client = new MongoClient(MONGODB_URI);
 
   try {
@@ -63,10 +73,10 @@ async function main(): Promise<void> {
     const db = client.db('immochecker');
     const pandCollection = db.collection('panden');
 
-    const fw4Kantoren = kantoren.filter((k) => k.scraper_groep === 'fw4_whise');
+    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren];
 
     await orchestrator.scrapeAndSync(
-      fw4Kantoren,
+      allRegisteredKantoren,
       async (kantoorId: number, kantoorNaam: string, panden: any[]) => {
         const now = new Date();
         const nieuwPanden = [];
