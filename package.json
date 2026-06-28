@@ -1,0 +1,26 @@
+{
+  "name": "immochecker",
+  "version": "1.0.0",
+  "description": "Automated property listing collector for 21 real estate agencies in Leuven region",
+  "private": true,
+  "workspaces": [
+    "packages/scraper",
+    "packages/api",
+    "packages/web"
+  ],
+  "scripts": {
+    "install-all": "npm install",
+    "scrape": "npm --workspace=@immochecker/scraper run scrape",
+    "api": "npm --workspace=@immochecker/api run dev",
+    "web": "npm --workspace=@immochecker/web run dev",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

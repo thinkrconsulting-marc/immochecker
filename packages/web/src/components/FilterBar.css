@@ -1,0 +1,109 @@
+.filter-bar {
+  background-color: white;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  border-bottom: 1px solid #ddd;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-group label {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 14px;
+}
+
+.filter-group input[type="number"],
+.filter-group select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.filter-group input[type="number"]:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.price-inputs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.price-inputs input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.price-inputs span {
+  color: #999;
+}
+
+.gemeente-checkboxes,
+.kantoor-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gemeente-checkboxes label,
+.kantoor-checkboxes label {
+  display: flex;
+  align-items: center;
+  font-weight: normal;
+  margin-bottom: 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+}
+
+.gemeente-checkboxes input[type="checkbox"],
+.kantoor-checkboxes input[type="checkbox"] {
+  margin-right: 8px;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.gemeente-checkboxes label:hover,
+.kantoor-checkboxes label:hover {
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .filter-bar {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-bar {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 15px;
+  }
+
+  .gemeente-checkboxes,
+  .kantoor-checkboxes {
+    max-height: 150px;
+    overflow-y: auto;
+  }
+}
