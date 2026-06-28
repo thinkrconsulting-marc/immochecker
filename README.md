@@ -7,9 +7,18 @@ Webapplicatie die het te-koop-aanbod van woningen van 21 lokale immokantoren (re
 **Phase 1-4: Complete** ✅
 - Monorepo setup met npm workspaces
 - MongoDB datamodel en sync-layer
-- Scraper-adapter interface met FW4-adapter
+- Scraper-adapter framework
 - Express API met routes
 - React frontend met filters en property cards
+
+**Adapter Implementation: 11/21 kantoren** ✅ (52%)
+- ✅ FW4 Whise (5): GVE, Liv'it, Immodrome, BOND, BVM
+- ✅ CMS Assets (3): De Dijle, Immo-M, Anthonis
+- ✅ Skarabee (1): Marnix
+- ✅ Statamic (1): Copandi
+- ✅ WordPress WPML (1): Jes
+- ⏳ Nationaal Portaal (3): Century 21, ERA, Heylen
+- ⏳ Custom Unknown (7): Immo 3000, Covas, Jan Stas, Surplus, Viva, Homies, Gilles
 
 ## Architectuur
 
@@ -49,10 +58,28 @@ NODE_ENV=development
 ## Gebouwde Componenten
 
 ### Scraper (`packages/scraper/`)
-- **BaseScraperAdapter**: Abstracte adapter voor alle scrapers
-- **FW4WhiseAdapter**: Concrete implementatie voor FW4-sites (5 kantoren)
-- **ScraperOrchestrator**: Orchestreert scraping met concurrency control en retry logic
-- Logging en error handling per kantoor
+
+**Adapters geimplementeerd:**
+- **FW4WhiseAdapter**: Voor FW4-powered sites (GVE, Liv'it, Immodrome, BOND, BVM)
+- **CMSAssetsAdapter**: Voor CMS Assets Platform (De Dijle, Immo-M, Anthonis)
+- **SkarabeeAdapter**: Voor Skarabee platform (Marnix)
+- **StatamicAdapter**: Voor Statamic CMS (Copandi)
+- **WordPressWPMLAdapter**: Voor WordPress met WPML (Jes)
+
+**Adapter Features:**
+- Playwright-based scraping (reliable, handles JavaScript)
+- Flexible HTML pattern matching
+- Photo carousel extraction
+- Property detail extraction (price, bedrooms, area, EPC, etc.)
+- Concurrency control (max 3 browsers)
+- Exponential backoff retry logic (max 3 retries)
+- Proper error handling per property
+
+**Adapter Architecture:**
+- `BaseScraperAdapter`: Abstracte klasse met common functionality
+- `ScraperAdapter` interface: Defines contract
+- Per-kantoor registratie in orchestrator
+- Seamless multi-adapter orchestration
 
 ### API (`packages/api/`)
 - **DatabaseService**: MongoDB connection en sync-logica
@@ -154,27 +181,52 @@ npm run build
 
 ## Volgende Stappen
 
-1. **Instellingen aanpassen**:
-   - MongoDB URI configureren in `.env`
-   - Port aanpassen indien nodig
+### Fase 1: Remaining Adapters (7 more kantoren)
+- [ ] Implement NationaalPortaalAdapter (Century 21, ERA, Heylen)
+- [ ] Implement CustomAdapters for remaining kantoren
+- [ ] Test all adapters with real URLs
 
-2. **Adapters toevoegen** (na FW4):
-   - `cms_assets_platform` (De Dijle, Immo-M, Anthonis)
-   - `skarabee` (Marnix)
-   - `statamic` (Copandi)
-   - `wordpress_wpml` (Jes)
-   - `nationaal_portaal` (Century 21, ERA, Heylen)
-   - `custom_onbekend` (Immo 3000, Covas, Jan Stas, Surplus, Viva, Homies, Gilles)
+### Fase 2: Deployment & Testing
+- [ ] Setup MongoDB Atlas cluster
+- [ ] Deploy API to Railway
+- [ ] Deploy Web frontend to Railway
+- [ ] Setup continuous scraping (cron jobs)
+- [ ] Add error monitoring/logging
 
-3. **Testen**:
-   - Unit tests voor adapters
-   - Integration tests voor API routes
-   - E2E tests voor UI
+### Fase 3: Enhanced Features
+- [ ] Add user saved searches
+- [ ] Email notifications for new listings
+- [ ] Property comparison tools
+- [ ] Map view with property locations
+- [ ] Advanced analytics dashboard
 
-4. **Optimalisering**:
-   - Caching strategies
-   - Image optimization
-   - Performance monitoring
+### Development Commands
+
+**Install:**
+```bash
+npm install
+```
+
+**Type checking:**
+```bash
+npm run type-check
+```
+
+**Build all packages:**
+```bash
+npm run build
+```
+
+**Run scraper:**
+```bash
+npm run scrape  # At packages/scraper level
+```
+
+**Development servers:**
+```bash
+npm run api     # API on port 3000
+npm run web     # Frontend on port 5173
+```
 
 ## Scripts Beschikbaar
 
