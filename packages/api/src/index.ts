@@ -2,6 +2,7 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
+import path from 'path';
 import { dbService } from './db';
 
 dotenv.config();
@@ -129,6 +130,13 @@ app.get('/api/kantoren/:id/panden', async (req: Request, res: Response) => {
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
+});
+
+const webDistPath = path.join(__dirname, '../../web/dist');
+app.use(express.static(webDistPath));
+
+app.get('*', (_req: Request, res: Response) => {
+  res.sendFile(path.join(webDistPath, 'index.html'));
 });
 
 async function startServer(): Promise<void> {

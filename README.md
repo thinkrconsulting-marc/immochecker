@@ -169,30 +169,110 @@ npm run build
 
 ## Deployment
 
-### Railway Configuration
+### Railway Deployment (Single Service)
 
-#### Service 1: `immo-api` (`packages/api`)
-- Root dir: `packages/api`
-- Type: Web service (Node.js)
-- Port: 3000
-- Env vars: `MONGODB_URI`, `SCRAPE_INTERVAL_CRON`, etc.
+Immochecker is configured for single-service deployment on Railway. The API server also serves the React frontend as static files.
 
-#### Service 2: `immo-web` (`packages/web`)
-- Root dir: `packages/web`
-- Type: Static site (Vite build)
+#### Prerequisites
+1. Railway.app account
+2. MongoDB Atlas cluster (free tier available)
+3. GitHub repository with this code
+
+#### Step 1: Setup MongoDB Atlas
+
+1. Go to https://www.mongodb.com/cloud/atlas
+2. Create free cluster
+3. Create database user with password
+4. Get connection string: `mongodb+srv://username:password@cluster.mongodb.net/immochecker`
+
+#### Step 2: Deploy to Railway
+
+1. **Connect GitHub repo**:
+   - Go to https://railway.app/new
+   - Select "GitHub Repo"
+   - Authorize & select this repository
+
+2. **Configure environment variables**:
+   In Railway dashboard, add these variables:
+   ```
+   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/immochecker
+   NODE_ENV=production
+   PORT=3000
+   SCRAPE_INTERVAL_CRON=0 */6 * * *
+   SCRAPE_CONCURRENCY=3
+   SCRAPE_DELAY_MS=1500
+   USER_AGENT=Mozilla/5.0 (compatible; ImmocheckerBot/1.0)
+   PURGE_AFTER_DAYS=30
+   ```
+
+3. **Configure build & start**:
+   Railway auto-detects Node.js projects. For this monorepo:
+   - Build command: `npm run build`
+   - Start command: `npm run start`
+
+   Or use the included `railway.toml` and `Procfile`
+
+4. **Deploy**:
+   - Railway auto-deploys on push to main branch
+   - Monitor logs in Railway dashboard
+
+#### Access Your App
+
+- **API**: https://your-railway-url.railway.app/api/panden
+- **Frontend**: https://your-railway-url.railway.app/
+
+### Alternative: Two-Service Railway Deployment
+
+If you prefer separate API and frontend services:
+
+**Service 1: API**
+- Repository root: `/`
 - Build: `npm run build`
-- Start: `npm run preview`
+- Start: `npm --workspace=@immochecker/api start`
+- Port: 3000
+- Env: `MONGODB_URI`, etc.
+
+**Service 2: Frontend** (optional, for CDN)
+- Repository root: `/`
+- Build: `npm --workspace=@immochecker/web run build`
+- Start: `npm --workspace=@immochecker/web run preview`
+- Port: 5173
+
+But single-service is recommended for simplicity.
+
+#### Troubleshooting
+
+**Build fails**: Ensure Node.js 18+ is available
+```bash
+node --version  # Should be >= 18.0.0
+```
+
+**MongoDB connection fails**: Check MONGODB_URI format and whitelist your IP
+
+**Frontend not loading**: Ensure build happens before start. Check railway.toml.
+
+### Local Testing Before Deployment
+
+```bash
+# Build production bundle
+npm run build
+
+# Start production server
+PORT=3000 npm run start
+
+# Visit http://localhost:3000
+```
 
 ## Volgende Stappen
 
-### Fase 1: Deployment & Testing (READY)
-- [ ] Setup MongoDB Atlas cluster
-- [ ] Configure .env with real MongoDB URI
-- [ ] Deploy API to Railway
-- [ ] Deploy Web frontend to Railway
-- [ ] Test scraping with real kantoor URLs
-- [ ] Setup continuous scraping (cron jobs)
-- [ ] Add error monitoring/logging
+### Fase 1: Deployment & Testing (READY ✅)
+- ✅ Setup npm start script with build
+- ✅ Create railway.toml configuration
+- ✅ Create Procfile for standard deployment
+- ✅ Add environment template (.env.example)
+- [x] Setup MongoDB Atlas cluster (user task)
+- [x] Deploy to Railway (user task)
+- [x] Test scraping with real kantoor URLs (post-deployment)
 
 ### Fase 2: Enhanced Features
 - [ ] Add user saved searches

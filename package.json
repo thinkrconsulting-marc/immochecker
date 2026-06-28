@@ -14,6 +14,8 @@
     "api": "npm --workspace=@immochecker/api run dev",
     "web": "npm --workspace=@immochecker/web run dev",
     "build": "npm run build --workspaces",
+    "start": "npm --workspace=@immochecker/api start",
+    "start:api": "npm --workspace=@immochecker/api start",
     "lint": "npm run lint --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present"
   },
