@@ -7,6 +7,7 @@ import { FW4WhiseAdapter } from './adapters/fw4Adapter';
 import { CMSAssetsAdapter } from './adapters/cmsAssetsAdapter';
 import { SkarabeeAdapter } from './adapters/skarabeeAdapter';
 import { StatamicAdapter } from './adapters/statamicAdapter';
+import { WordPressWPMLAdapter } from './adapters/wordpressWpmlAdapter';
 import { KantoorConfig } from './types';
 
 dotenv.config();
@@ -86,6 +87,15 @@ async function main(): Promise<void> {
     ));
   }
 
+  const wordpressKantoren = kantoren.filter((k) => k.scraper_groep === 'wordpress_wpml');
+  for (const kantoor of wordpressKantoren) {
+    orchestrator.registerAdapter(kantoor.id.toString(), new WordPressWPMLAdapter(
+      kantoor,
+      USER_AGENT,
+      SCRAPE_DELAY_MS
+    ));
+  }
+
   const client = new MongoClient(MONGODB_URI);
 
   try {
@@ -93,7 +103,7 @@ async function main(): Promise<void> {
     const db = client.db('immochecker');
     const pandCollection = db.collection('panden');
 
-    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren, ...skarabeeKantoren, ...statamicKantoren];
+    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren, ...skarabeeKantoren, ...statamicKantoren, ...wordpressKantoren];
 
     await orchestrator.scrapeAndSync(
       allRegisteredKantoren,
