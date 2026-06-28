@@ -12,7 +12,6 @@ const MONGODB_URI = process.env.MONGODB_URI || '';
 const SCRAPE_CONCURRENCY = parseInt(process.env.SCRAPE_CONCURRENCY || '3', 10);
 const SCRAPE_DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || '1500', 10);
 const USER_AGENT = process.env.USER_AGENT || 'Mozilla/5.0 (compatible; ImmocheckerBot/1.0)';
-const PURGE_AFTER_DAYS = parseInt(process.env.PURGE_AFTER_DAYS || '30', 10);
 
 async function main(): Promise<void> {
   if (!MONGODB_URI) {
@@ -24,11 +23,12 @@ async function main(): Promise<void> {
   const kantorenData = JSON.parse(fs.readFileSync(kantorenPath, 'utf-8'));
 
   const kantoren: KantoorConfig[] = [];
-  for (const [grupeNaam, grupeData]: [string, any] of Object.entries(
+  for (const [grupeNaam, grupeData] of Object.entries(
     kantorenData.scraper_groepen
   )) {
-    if (grupeData.kantoren) {
-      for (const kantoor of grupeData.kantoren) {
+    const grupeInfo = grupeData as { kantoren?: Array<{ id: number; naam: string; basis_url: string; aanbod_urls: string[] }> };
+    if (grupeInfo.kantoren) {
+      for (const kantoor of grupeInfo.kantoren) {
         kantoren.push({
           id: kantoor.id,
           naam: kantoor.naam,
@@ -47,11 +47,14 @@ async function main(): Promise<void> {
     maxRetries: 3
   });
 
-  orchestrator.registerAdapter('fw4_whise', new FW4WhiseAdapter(
-    { id: 0, naam: 'fw4', basis_url: 'https://fw4.immo', aanbod_urls: [] },
-    USER_AGENT,
-    SCRAPE_DELAY_MS
-  ));
+  const fw4Kantoren = kantoren.filter((k) => k.scraper_groep === 'fw4_whise');
+  for (const kantoor of fw4Kantoren) {
+    orchestrator.registerAdapter(kantoor.id.toString(), new FW4WhiseAdapter(
+      kantoor,
+      USER_AGENT,
+      SCRAPE_DELAY_MS
+    ));
+  }
 
   const client = new MongoClient(MONGODB_URI);
 
@@ -62,7 +65,7 @@ async function main(): Promise<void> {
 
     const fw4Kantoren = kantoren.filter((k) => k.scraper_groep === 'fw4_whise');
 
-    const stats = await orchestrator.scrapeAndSync(
+    await orchestrator.scrapeAndSync(
       fw4Kantoren,
       async (kantoorId: number, kantoorNaam: string, panden: any[]) => {
         const now = new Date();

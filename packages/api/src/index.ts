@@ -61,7 +61,7 @@ app.get('/api/panden/nieuw', async (req: Request, res: Response) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const { panden: allPanden, total } = await dbService.getActivePanden({
+    const { panden: allPanden } = await dbService.getActivePanden({
       gemeente,
       prijs_min,
       prijs_max,
@@ -85,7 +85,7 @@ app.get('/api/panden/nieuw', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/kantoren', async (req: Request, res: Response) => {
+app.get('/api/kantoren', async (_req: Request, res: Response) => {
   try {
     const kantoren = await dbService.getKantoren();
     res.json(kantoren);
@@ -127,7 +127,7 @@ app.get('/api/kantoren/:id/panden', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 

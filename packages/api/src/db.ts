@@ -157,7 +157,7 @@ export class DatabaseService {
 
     const total = await this.pandCollection.countDocuments(query);
 
-    let sortQuery: Record<string, number> = { laatst_gezien: -1 };
+    let sortQuery: any = { laatst_gezien: -1 };
     if (filters?.sort) {
       if (filters.sort === 'prijs_asc') sortQuery = { prijs: 1 };
       else if (filters.sort === 'prijs_desc') sortQuery = { prijs: -1 };

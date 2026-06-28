@@ -1,13 +1,12 @@
-import { Page } from 'playwright';
-import { BaseScraperAdapter } from './baseAdapter';
-import { RuwPand } from './types';
+import { BaseScraperAdapter } from '../baseAdapter';
+import { RuwPand } from '../types';
 
 export class FW4WhiseAdapter extends BaseScraperAdapter {
   private detailLinkRegex = /(huis|villa|woning|gelijkvloerse-woning|eengezinswoning|appartement|opbrengsteigendom|grond|garage|kantoor|commercieel|gebouw-voor-gemengd-gebruik)-te-koop-in-[a-z0-9-]+\/\d{6,7}/g;
 
-  async scrapeKantoor(page?: any): Promise<RuwPand[]> {
+  async scrapeKantoor(): Promise<RuwPand[]> {
     const playwright = await import('playwright');
-    const browserPage = page || (await this.createPage(playwright));
+    const browserPage = await this.createPage(playwright);
 
     try {
       const allPanden: RuwPand[] = [];
@@ -32,9 +31,7 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
 
       return allPanden;
     } finally {
-      if (!page) {
-        await browserPage.close();
-      }
+      await browserPage.close();
     }
   }
 
@@ -100,7 +97,7 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
 
       const fotos = await this.extractPhotos(page);
 
-      const gemeente = this.extractGemeente(url, titel);
+      const gemeente = this.extractGemeente(url);
       const externe_id = this.extractId(url);
 
       const pand: RuwPand = {
@@ -138,7 +135,7 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
     return photos.slice(0, 5);
   }
 
-  private extractGemeente(url: string, titel: string): string {
+  private extractGemeente(url: string): string {
     const match = url.match(/te-koop-in-([a-z0-9-]+)/);
     if (match) {
       return match[1].split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');

@@ -28,8 +28,8 @@ export class ScraperOrchestrator {
     this.config = config;
   }
 
-  registerAdapter(grupeNaam: string, adapter: BaseScraperAdapter): void {
-    this.adapters.set(grupeNaam, adapter);
+  registerAdapter(kantoorId: string, adapter: BaseScraperAdapter): void {
+    this.adapters.set(kantoorId, adapter);
   }
 
   async scrapeAndSync(
@@ -37,13 +37,11 @@ export class ScraperOrchestrator {
     syncFn: (kantoorId: number, kantoorNaam: string, panden: RuwPand[]) => Promise<any>
   ): Promise<SyncStats[]> {
     const limit = pLimit(this.config.concurrency);
-    const results: SyncStats[] = [];
 
     const tasks = kantoren.map((kantoor) =>
       limit(async () => {
         const startTime = Date.now();
-        const grupeNaam = kantoor.scraper_groep;
-        const adapter = this.adapters.get(grupeNaam);
+        const adapter = this.adapters.get(kantoor.id.toString());
 
         if (!adapter) {
           return {
@@ -54,7 +52,7 @@ export class ScraperOrchestrator {
             geupdate: 0,
             verdwenen: 0,
             duur_ms: 0,
-            error: `No adapter found for gruppe: ${grupeNaam}`
+            error: `No adapter registered for kantoor: ${kantoor.naam}`
           };
         }
 
@@ -105,10 +103,10 @@ export class ScraperOrchestrator {
       })
     );
 
-    const stats = await Promise.all(tasks);
-    this.logSummary(stats);
+    const allStats = await Promise.all(tasks);
+    this.logSummary(allStats);
 
-    return stats;
+    return allStats;
   }
 
   private logSyncResult(stat: SyncStats): void {

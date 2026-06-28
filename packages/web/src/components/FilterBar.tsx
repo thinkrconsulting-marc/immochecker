@@ -4,10 +4,10 @@ import './FilterBar.css';
 interface FilterBarProps {
   kantoren: any[];
   onFilterChange: (filters: any) => void;
-  filters: any;
+  filters?: any;
 }
 
-function FilterBar({ kantoren, onFilterChange, filters }: FilterBarProps) {
+function FilterBar({ kantoren, onFilterChange }: FilterBarProps) {
   const [prijsMin, setPrijsMin] = useState('');
   const [prijsMax, setPrijsMax] = useState('');
   const [selectedGemeenten, setSelectedGemeenten] = useState<string[]>([]);
