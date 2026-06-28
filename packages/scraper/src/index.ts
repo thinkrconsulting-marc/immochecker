@@ -6,6 +6,7 @@ import { ScraperOrchestrator } from './orchestrator';
 import { FW4WhiseAdapter } from './adapters/fw4Adapter';
 import { CMSAssetsAdapter } from './adapters/cmsAssetsAdapter';
 import { SkarabeeAdapter } from './adapters/skarabeeAdapter';
+import { StatamicAdapter } from './adapters/statamicAdapter';
 import { KantoorConfig } from './types';
 
 dotenv.config();
@@ -76,6 +77,15 @@ async function main(): Promise<void> {
     ));
   }
 
+  const statamicKantoren = kantoren.filter((k) => k.scraper_groep === 'statamic');
+  for (const kantoor of statamicKantoren) {
+    orchestrator.registerAdapter(kantoor.id.toString(), new StatamicAdapter(
+      kantoor,
+      USER_AGENT,
+      SCRAPE_DELAY_MS
+    ));
+  }
+
   const client = new MongoClient(MONGODB_URI);
 
   try {
@@ -83,7 +93,7 @@ async function main(): Promise<void> {
     const db = client.db('immochecker');
     const pandCollection = db.collection('panden');
 
-    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren, ...skarabeeKantoren];
+    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren, ...skarabeeKantoren, ...statamicKantoren];
 
     await orchestrator.scrapeAndSync(
       allRegisteredKantoren,
