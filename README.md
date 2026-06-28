@@ -11,14 +11,14 @@ Webapplicatie die het te-koop-aanbod van woningen van 21 lokale immokantoren (re
 - Express API met routes
 - React frontend met filters en property cards
 
-**Adapter Implementation: 11/21 kantoren** ✅ (52%)
+**Adapter Implementation: 21/21 kantoren** ✅✅✅ (100%)
 - ✅ FW4 Whise (5): GVE, Liv'it, Immodrome, BOND, BVM
 - ✅ CMS Assets (3): De Dijle, Immo-M, Anthonis
 - ✅ Skarabee (1): Marnix
 - ✅ Statamic (1): Copandi
 - ✅ WordPress WPML (1): Jes
-- ⏳ Nationaal Portaal (3): Century 21, ERA, Heylen
-- ⏳ Custom Unknown (7): Immo 3000, Covas, Jan Stas, Surplus, Viva, Homies, Gilles
+- ✅ Nationaal Portaal (3): Century 21, ERA, Heylen
+- ✅ Generic HTML (7): Immo 3000, Covas, Jan Stas, Surplus, Viva, Homies, Gilles
 
 ## Architectuur
 
@@ -65,15 +65,19 @@ NODE_ENV=development
 - **SkarabeeAdapter**: Voor Skarabee platform (Marnix)
 - **StatamicAdapter**: Voor Statamic CMS (Copandi)
 - **WordPressWPMLAdapter**: Voor WordPress met WPML (Jes)
+- **NationaalPortaalAdapter**: Voor Nationaal Portaal (Century 21, ERA, Heylen)
+- **GenericHTMLAdapter**: Voor onbekende/custom sites (Immo 3000, Covas, Jan Stas, Surplus, Viva, Homies, Gilles)
 
 **Adapter Features:**
 - Playwright-based scraping (reliable, handles JavaScript)
-- Flexible HTML pattern matching
+- Flexible HTML pattern matching (multiple fallback patterns)
 - Photo carousel extraction
 - Property detail extraction (price, bedrooms, area, EPC, etc.)
+- Dynamic pagination/content loading
 - Concurrency control (max 3 browsers)
 - Exponential backoff retry logic (max 3 retries)
 - Proper error handling per property
+- Blacklist filtering (skip search pages, tags, etc.)
 
 **Adapter Architecture:**
 - `BaseScraperAdapter`: Abstracte klasse met common functionality
@@ -181,19 +185,16 @@ npm run build
 
 ## Volgende Stappen
 
-### Fase 1: Remaining Adapters (7 more kantoren)
-- [ ] Implement NationaalPortaalAdapter (Century 21, ERA, Heylen)
-- [ ] Implement CustomAdapters for remaining kantoren
-- [ ] Test all adapters with real URLs
-
-### Fase 2: Deployment & Testing
+### Fase 1: Deployment & Testing (READY)
 - [ ] Setup MongoDB Atlas cluster
+- [ ] Configure .env with real MongoDB URI
 - [ ] Deploy API to Railway
 - [ ] Deploy Web frontend to Railway
+- [ ] Test scraping with real kantoor URLs
 - [ ] Setup continuous scraping (cron jobs)
 - [ ] Add error monitoring/logging
 
-### Fase 3: Enhanced Features
+### Fase 2: Enhanced Features
 - [ ] Add user saved searches
 - [ ] Email notifications for new listings
 - [ ] Property comparison tools
@@ -219,7 +220,7 @@ npm run build
 
 **Run scraper:**
 ```bash
-npm run scrape  # At packages/scraper level
+npm run scrape  # At packages/scraper level (requires MONGODB_URI in .env)
 ```
 
 **Development servers:**
