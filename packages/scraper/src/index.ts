@@ -8,6 +8,8 @@ import { CMSAssetsAdapter } from './adapters/cmsAssetsAdapter';
 import { SkarabeeAdapter } from './adapters/skarabeeAdapter';
 import { StatamicAdapter } from './adapters/statamicAdapter';
 import { WordPressWPMLAdapter } from './adapters/wordpressWpmlAdapter';
+import { NationaalPortaalAdapter } from './adapters/nationaalPortaalAdapter';
+import { GenericHTMLAdapter } from './adapters/genericHtmlAdapter';
 import { KantoorConfig } from './types';
 
 dotenv.config();
@@ -96,6 +98,24 @@ async function main(): Promise<void> {
     ));
   }
 
+  const nationaalPortaalKantoren = kantoren.filter((k) => k.scraper_groep === 'nationaal_portaal');
+  for (const kantoor of nationaalPortaalKantoren) {
+    orchestrator.registerAdapter(kantoor.id.toString(), new NationaalPortaalAdapter(
+      kantoor,
+      USER_AGENT,
+      SCRAPE_DELAY_MS
+    ));
+  }
+
+  const customKantoren = kantoren.filter((k) => k.scraper_groep === 'custom_onbekend');
+  for (const kantoor of customKantoren) {
+    orchestrator.registerAdapter(kantoor.id.toString(), new GenericHTMLAdapter(
+      kantoor,
+      USER_AGENT,
+      SCRAPE_DELAY_MS
+    ));
+  }
+
   const client = new MongoClient(MONGODB_URI);
 
   try {
@@ -103,7 +123,15 @@ async function main(): Promise<void> {
     const db = client.db('immochecker');
     const pandCollection = db.collection('panden');
 
-    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren, ...skarabeeKantoren, ...statamicKantoren, ...wordpressKantoren];
+    const allRegisteredKantoren = [
+      ...fw4Kantoren,
+      ...cmsAssetsKantoren,
+      ...skarabeeKantoren,
+      ...statamicKantoren,
+      ...wordpressKantoren,
+      ...nationaalPortaalKantoren,
+      ...customKantoren
+    ];
 
     await orchestrator.scrapeAndSync(
       allRegisteredKantoren,
