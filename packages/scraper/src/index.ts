@@ -5,6 +5,7 @@ import { MongoClient } from 'mongodb';
 import { ScraperOrchestrator } from './orchestrator';
 import { FW4WhiseAdapter } from './adapters/fw4Adapter';
 import { CMSAssetsAdapter } from './adapters/cmsAssetsAdapter';
+import { SkarabeeAdapter } from './adapters/skarabeeAdapter';
 import { KantoorConfig } from './types';
 
 dotenv.config();
@@ -66,6 +67,15 @@ async function main(): Promise<void> {
     ));
   }
 
+  const skarabeeKantoren = kantoren.filter((k) => k.scraper_groep === 'skarabee');
+  for (const kantoor of skarabeeKantoren) {
+    orchestrator.registerAdapter(kantoor.id.toString(), new SkarabeeAdapter(
+      kantoor,
+      USER_AGENT,
+      SCRAPE_DELAY_MS
+    ));
+  }
+
   const client = new MongoClient(MONGODB_URI);
 
   try {
@@ -73,7 +83,7 @@ async function main(): Promise<void> {
     const db = client.db('immochecker');
     const pandCollection = db.collection('panden');
 
-    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren];
+    const allRegisteredKantoren = [...fw4Kantoren, ...cmsAssetsKantoren, ...skarabeeKantoren];
 
     await orchestrator.scrapeAndSync(
       allRegisteredKantoren,
