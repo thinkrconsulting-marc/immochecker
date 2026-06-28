@@ -169,28 +169,36 @@ npm run build
 
 ## Deployment
 
-### Railway Deployment (Single Service) ✅ Ready
+### Railway + PostgreSQL ✅ Ready
 
-Immochecker is fully configured for single-service deployment on Railway. The API server also serves the React frontend as static files.
+Immochecker is fully configured for Railway deployment with PostgreSQL database. The API server also serves the React frontend as static files.
 
-**See detailed guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
+**See detailed guide**: [RAILWAY_POSTGRESQL.md](RAILWAY_POSTGRESQL.md)
 
-**Quick start** (5 minutes):
+**Quick start** (10 minutes):
 
-1. **MongoDB Atlas**: Create free cluster at https://www.mongodb.com/cloud/atlas
-2. **Get connection string**: `mongodb+srv://username:password@cluster.mongodb.net/immochecker`
-3. **Railway**: Connect GitHub repo at https://railway.app
-4. **Add environment variables**:
+1. **Go to Railway**: https://railway.app/dashboard
+2. **New Project** → "Deploy from GitHub repo" → Select `immochecker`
+3. **Add PostgreSQL**: Click "+ New" → "Database" → "PostgreSQL"
+4. **Railway auto-links DATABASE_URL** ✅
+5. **Add environment variables** (optional, mostly auto-set):
    ```
-   MONGODB_URI=your-connection-string
+   PORT=3000
    NODE_ENV=production
    ```
-5. **Push to GitHub** to trigger auto-deployment
+6. **Push to GitHub** to trigger deploy:
+   ```bash
+   git add -A
+   git commit -m "Deploy to Railway"
+   git push origin main
+   ```
 
 **Access your app** after deployment:
 - Frontend: https://your-railway-url.railway.app/
 - API: https://your-railway-url.railway.app/api/kantoren
 - Health check: https://your-railway-url.railway.app/api/health
+
+**Database**: PostgreSQL runs on Railway automatically with free tier
 
 **Local testing before deployment**:
 ```bash
@@ -202,9 +210,9 @@ PORT=3000 npm run start  # Test locally
 
 - `railway.toml` - Railway configuration
 - `Procfile` - Build/start commands
-- `.env.example` - Environment template
+- `.env.example` - Environment template (PostgreSQL format)
 - `deploy.sh` - Local validation script
-- `DEPLOYMENT.md` - Detailed deployment guide
+- `RAILWAY_POSTGRESQL.md` - Complete PostgreSQL deployment guide
 
 ## Volgende Stappen
 
