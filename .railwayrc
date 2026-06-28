@@ -1,0 +1,16 @@
+{
+  "build": {
+    "builder": "nixpacks"
+  },
+  "deploy": {
+    "startCommand": "npm run build && npm run start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5
+  },
+  "service": {
+    "name": "immochecker",
+    "numReplicas": 1,
+    "cpuCount": "0.5",
+    "memoryGB": 1
+  }
+}
