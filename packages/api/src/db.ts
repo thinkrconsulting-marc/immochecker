@@ -1,222 +1,287 @@
-import { MongoClient, Db, Collection } from 'mongodb';
-import { Pand, RuwPand } from './types';
+import { Pool } from 'pg';
 
-export class DatabaseService {
-  private client: MongoClient | null = null;
-  private db: Db | null = null;
-  private pandCollection: Collection<Pand> | null = null;
+interface PandRow {
+  id: number;
+  kantoor_id: number;
+  kantoor_naam: string;
+  externe_id: string;
+  bron_url: string;
+  type: string;
+  titel: string;
+  beschrijving?: string;
+  gemeente: string;
+  postcode: string;
+  prijs?: number;
+  slaapkamers?: number;
+  woonoppervlakte_m2?: number;
+  perceel_m2?: number;
+  epc?: string;
+  fotos: string[];
+  status: 'actief' | 'verdwenen';
+  eerst_gezien: Date;
+  laatst_gezien: Date;
+}
 
-  async connect(mongoUri: string, dbName: string = 'immochecker'): Promise<void> {
-    this.client = new MongoClient(mongoUri);
-    await this.client.connect();
-    this.db = this.client.db(dbName);
-    this.pandCollection = this.db.collection<Pand>('panden');
-    await this.createIndexes();
+interface GetPandenOptions {
+  gemeente?: string[];
+  prijs_min?: number;
+  prijs_max?: number;
+  kantoor_ids?: number[];
+  page?: number;
+  limit?: number;
+  sort?: string;
+}
+
+class DatabaseService {
+  private pool: Pool;
+
+  constructor() {
+    this.pool = new Pool({
+      connectionString: process.env.DATABASE_URL
+    });
   }
 
-  async disconnect(): Promise<void> {
-    if (this.client) {
-      await this.client.close();
+  async connect(databaseUrl: string): Promise<void> {
+    this.pool = new Pool({
+      connectionString: databaseUrl
+    });
+
+    try {
+      await this.pool.query('SELECT NOW()');
+      console.log('Connected to PostgreSQL');
+
+      await this.initializeSchema();
+    } catch (error) {
+      console.error('Failed to connect to PostgreSQL:', error);
+      throw error;
     }
   }
 
-  private async createIndexes(): Promise<void> {
-    if (!this.pandCollection) return;
+  private async initializeSchema(): Promise<void> {
+    const schema = `
+      CREATE TABLE IF NOT EXISTS panden (
+        id SERIAL PRIMARY KEY,
+        kantoor_id INTEGER NOT NULL,
+        kantoor_naam VARCHAR(255) NOT NULL,
+        externe_id VARCHAR(255) NOT NULL,
+        bron_url VARCHAR(2048) UNIQUE NOT NULL,
+        type VARCHAR(50) DEFAULT 'huis',
+        titel VARCHAR(500) NOT NULL,
+        beschrijving TEXT,
+        gemeente VARCHAR(255) NOT NULL,
+        postcode VARCHAR(10),
+        prijs INTEGER,
+        slaapkamers INTEGER,
+        woonoppervlakte_m2 INTEGER,
+        perceel_m2 INTEGER,
+        epc VARCHAR(1),
+        fotos TEXT[] DEFAULT '{}',
+        status VARCHAR(20) DEFAULT 'actief',
+        eerst_gezien TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        laatst_gezien TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(kantoor_id, externe_id)
+      );
 
-    await this.pandCollection.createIndex({ bron_url: 1 }, { unique: true });
-    await this.pandCollection.createIndex({ kantoor_id: 1, externe_id: 1 }, { unique: true });
-    await this.pandCollection.createIndex({ status: 1 });
-    await this.pandCollection.createIndex({ gemeente: 1 });
-    await this.pandCollection.createIndex({ prijs: 1 });
-    await this.pandCollection.createIndex({ eerst_gezien: 1 });
-    await this.pandCollection.createIndex({ kantoor_id: 1 });
+      CREATE INDEX IF NOT EXISTS idx_status ON panden(status);
+      CREATE INDEX IF NOT EXISTS idx_gemeente ON panden(gemeente);
+      CREATE INDEX IF NOT EXISTS idx_prijs ON panden(prijs);
+      CREATE INDEX IF NOT EXISTS idx_eerste_gezien ON panden(eerst_gezien);
+      CREATE INDEX IF NOT EXISTS idx_kantoor_id ON panden(kantoor_id);
+    `;
+
+    try {
+      await this.pool.query(schema);
+    } catch (error) {
+      console.error('Failed to initialize schema:', error);
+    }
   }
 
-  async syncPanden(
-    kantoorId: number,
-    kantoorNaam: string,
-    rawPanden: RuwPand[]
-  ): Promise<{ nieuw: number; geupdate: number; verdwenen: number }> {
-    if (!this.pandCollection) {
-      throw new Error('Database not connected');
+  async getActivePanden(options: GetPandenOptions): Promise<{ panden: PandRow[]; total: number }> {
+    let query = 'SELECT * FROM panden WHERE status = $1';
+    let params: any[] = ['actief'];
+    let paramIndex = 2;
+
+    if (options.gemeente && options.gemeente.length > 0) {
+      const placeholders = options.gemeente.map(() => `$${paramIndex++}`).join(',');
+      query += ` AND gemeente IN (${placeholders})`;
+      params.push(...options.gemeente);
     }
 
-    const now = new Date();
-    const stats = { nieuw: 0, geupdate: 0, verdwenen: 0 };
-
-    const existingPanden = await this.pandCollection
-      .find({ kantoor_id: kantoorId, status: 'actief' })
-      .toArray();
-
-    const rawPandenUrls = new Set(rawPanden.map((p) => p.bron_url));
-
-    for (const pand of rawPanden) {
-      const existing = existingPanden.find((p) => p.externe_id === pand.externe_id);
-
-      if (existing) {
-        const updates = {
-          $set: {
-            titel: pand.titel,
-            beschrijving: pand.beschrijving,
-            gemeente: pand.gemeente,
-            postcode: pand.postcode,
-            prijs: pand.prijs,
-            slaapkamers: pand.slaapkamers,
-            woonoppervlakte_m2: pand.woonoppervlakte_m2,
-            perceel_m2: pand.perceel_m2,
-            epc: pand.epc,
-            fotos: pand.fotos,
-            status: 'actief' as const,
-            laatst_gezien: now
-          }
-        };
-
-        await this.pandCollection.updateOne({ _id: existing._id }, updates);
-        stats.geupdate++;
-      } else {
-        const newPand: Pand = {
-          kantoor_id: kantoorId,
-          kantoor_naam: kantoorNaam,
-          externe_id: pand.externe_id,
-          bron_url: pand.bron_url,
-          type: 'huis',
-          titel: pand.titel,
-          beschrijving: pand.beschrijving,
-          gemeente: pand.gemeente,
-          postcode: pand.postcode || '',
-          prijs: pand.prijs,
-          slaapkamers: pand.slaapkamers,
-          woonoppervlakte_m2: pand.woonoppervlakte_m2,
-          perceel_m2: pand.perceel_m2,
-          epc: pand.epc,
-          fotos: pand.fotos,
-          status: 'actief',
-          eerst_gezien: now,
-          laatst_gezien: now
-        };
-
-        try {
-          await this.pandCollection.insertOne(newPand);
-          stats.nieuw++;
-        } catch (error: unknown) {
-          const err = error as { code?: number };
-          if (err.code === 11000) {
-            stats.geupdate++;
-          } else {
-            throw error;
-          }
-        }
-      }
+    if (options.prijs_min !== undefined) {
+      query += ` AND (prijs IS NULL OR prijs >= $${paramIndex++})`;
+      params.push(options.prijs_min);
     }
 
-    for (const existing of existingPanden) {
-      if (!rawPandenUrls.has(existing.bron_url)) {
-        await this.pandCollection.updateOne(
-          { _id: existing._id },
-          { $set: { status: 'verdwenen' as const } }
-        );
-        stats.verdwenen++;
-      }
+    if (options.prijs_max !== undefined) {
+      query += ` AND (prijs IS NULL OR prijs <= $${paramIndex++})`;
+      params.push(options.prijs_max);
     }
 
-    return stats;
-  }
-
-  async getActivePanden(filters?: {
-    gemeente?: string[];
-    prijs_min?: number;
-    prijs_max?: number;
-    kantoor_ids?: number[];
-    page?: number;
-    limit?: number;
-    sort?: string;
-  }): Promise<{ panden: Pand[]; total: number }> {
-    if (!this.pandCollection) {
-      throw new Error('Database not connected');
+    if (options.kantoor_ids && options.kantoor_ids.length > 0) {
+      const placeholders = options.kantoor_ids.map(() => `$${paramIndex++}`).join(',');
+      query += ` AND kantoor_id IN (${placeholders})`;
+      params.push(...options.kantoor_ids);
     }
 
-    const query: Record<string, unknown> = { status: 'actief' };
+    const sortMap: Record<string, string> = {
+      prijs_asc: 'prijs ASC NULLS LAST',
+      prijs_desc: 'prijs DESC NULLS LAST',
+      nieuw: 'eerst_gezien DESC',
+      oud: 'eerst_gezien ASC'
+    };
 
-    if (filters?.gemeente && filters.gemeente.length > 0) {
-      query.gemeente = { $in: filters.gemeente };
-    }
+    const orderBy = sortMap[options.sort || 'nieuw'] || 'eerst_gezien DESC';
+    query += ` ORDER BY ${orderBy}`;
 
-    if (filters?.prijs_min !== undefined || filters?.prijs_max !== undefined) {
-      query.prijs = {};
-      if (filters.prijs_min !== undefined) {
-        (query.prijs as Record<string, number>).$gte = filters.prijs_min;
-      }
-      if (filters.prijs_max !== undefined) {
-        (query.prijs as Record<string, number>).$lte = filters.prijs_max;
-      }
-    }
+    const countQuery = query.replace(/SELECT \*/, 'SELECT COUNT(*) as total');
+    const countResult = await this.pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0]?.total || '0', 10);
 
-    if (filters?.kantoor_ids && filters.kantoor_ids.length > 0) {
-      query.kantoor_id = { $in: filters.kantoor_ids };
-    }
+    const page = options.page || 1;
+    const limit = options.limit || 24;
+    const offset = (page - 1) * limit;
 
-    const total = await this.pandCollection.countDocuments(query);
+    query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+    params.push(limit, offset);
 
-    let sortQuery: any = { laatst_gezien: -1 };
-    if (filters?.sort) {
-      if (filters.sort === 'prijs_asc') sortQuery = { prijs: 1 };
-      else if (filters.sort === 'prijs_desc') sortQuery = { prijs: -1 };
-      else if (filters.sort === 'oudst') sortQuery = { eerst_gezien: 1 };
-    }
-
-    const page = filters?.page || 1;
-    const limit = filters?.limit || 24;
-    const skip = (page - 1) * limit;
-
-    const panden = await this.pandCollection
-      .find(query)
-      .sort(sortQuery)
-      .skip(skip)
-      .limit(limit)
-      .toArray();
+    const result = await this.pool.query(query, params);
+    const panden: PandRow[] = result.rows.map(row => ({
+      ...row,
+      fotos: Array.isArray(row.fotos) ? row.fotos : [],
+      eerst_gezien: new Date(row.eerst_gezien),
+      laatst_gezien: new Date(row.laatst_gezien)
+    }));
 
     return { panden, total };
   }
 
-  async purgeOldVerdwenen(daysOld: number): Promise<number> {
-    if (!this.pandCollection) {
-      throw new Error('Database not connected');
-    }
+  async getNeuwePanden(minDays: number = 7): Promise<PandRow[]> {
+    const query = `
+      SELECT * FROM panden
+      WHERE status = 'actief'
+      AND eerst_gezien >= NOW() - INTERVAL '${minDays} days'
+      ORDER BY eerst_gezien DESC
+      LIMIT 100
+    `;
 
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-    const result = await this.pandCollection.deleteMany({
-      status: 'verdwenen',
-      laatst_gezien: { $lt: cutoffDate }
-    });
-
-    return result.deletedCount || 0;
+    const result = await this.pool.query(query);
+    return result.rows.map(row => ({
+      ...row,
+      fotos: Array.isArray(row.fotos) ? row.fotos : [],
+      eerst_gezien: new Date(row.eerst_gezien),
+      laatst_gezien: new Date(row.laatst_gezien)
+    }));
   }
 
-  async getKantoren(): Promise<Array<{ id: number; naam: string; actief_count: number }>> {
-    if (!this.pandCollection) {
-      throw new Error('Database not connected');
+  async getAllKantoren(): Promise<any[]> {
+    const query = `
+      SELECT DISTINCT kantoor_id as id, kantoor_naam as naam
+      FROM panden
+      WHERE status = 'actief'
+      ORDER BY kantoor_naam ASC
+    `;
+
+    const result = await this.pool.query(query);
+    return result.rows;
+  }
+
+  async getPandenByKantoor(kantoorId: number): Promise<PandRow[]> {
+    const query = `
+      SELECT * FROM panden
+      WHERE kantoor_id = $1 AND status = 'actief'
+      ORDER BY eerst_gezien DESC
+    `;
+
+    const result = await this.pool.query(query, [kantoorId]);
+    return result.rows.map(row => ({
+      ...row,
+      fotos: Array.isArray(row.fotos) ? row.fotos : [],
+      eerst_gezien: new Date(row.eerst_gezien),
+      laatst_gezien: new Date(row.laatst_gezien)
+    }));
+  }
+
+  async syncPanden(kantoorId: number, kantoorNaam: string, panden: any[]): Promise<void> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const upsertQuery = `
+        INSERT INTO panden (kantoor_id, kantoor_naam, externe_id, bron_url, titel, gemeente, postcode, prijs, slaapkamers, woonoppervlakte_m2, perceel_m2, epc, fotos, status, eerst_gezien, laatst_gezien)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'actief', NOW(), NOW())
+        ON CONFLICT (kantoor_id, externe_id) DO UPDATE SET
+          titel = $5,
+          gemeente = $6,
+          postcode = $7,
+          prijs = $8,
+          slaapkamers = $9,
+          woonoppervlakte_m2 = $10,
+          perceel_m2 = $11,
+          epc = $12,
+          fotos = $13,
+          status = 'actief',
+          laatst_gezien = NOW()
+      `;
+
+      for (const pand of panden) {
+        await client.query(upsertQuery, [
+          kantoorId,
+          kantoorNaam,
+          pand.externe_id,
+          pand.bron_url,
+          pand.titel,
+          pand.gemeente,
+          pand.postcode,
+          pand.prijs || null,
+          pand.slaapkamers || null,
+          pand.woonoppervlakte_m2 || null,
+          pand.perceel_m2 || null,
+          pand.epc || null,
+          pand.fotos || []
+        ]);
+      }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async purgeOldVerdwenen(days: number): Promise<number> {
+    const query = `
+      DELETE FROM panden
+      WHERE status = 'verdwenen'
+      AND laatst_gezien < NOW() - INTERVAL '${days} days'
+    `;
+
+    const result = await this.pool.query(query);
+    return result.rowCount || 0;
+  }
+
+  async markMissing(kantoorId: number, existingIds: string[]): Promise<void> {
+    if (existingIds.length === 0) {
+      return;
     }
 
-    const result = await this.pandCollection
-      .aggregate([
-        { $match: { status: 'actief' } },
-        {
-          $group: {
-            _id: { id: '$kantoor_id', naam: '$kantoor_naam' },
-            count: { $sum: 1 }
-          }
-        },
-        { $sort: { '_id.id': 1 } }
-      ])
-      .toArray();
+    const placeholders = existingIds.map((_, i) => `$${i + 2}`).join(',');
+    const query = `
+      UPDATE panden
+      SET status = 'verdwenen', laatst_gezien = NOW()
+      WHERE kantoor_id = $1
+      AND status = 'actief'
+      AND externe_id NOT IN (${placeholders})
+    `;
 
-    return result.map((r) => ({
-      id: (r._id as { id: number; naam: string }).id,
-      naam: (r._id as { id: number; naam: string }).naam,
-      actief_count: r.count
-    }));
+    const params = [kantoorId, ...existingIds];
+    await this.pool.query(query, params);
+  }
+
+  async disconnect(): Promise<void> {
+    await this.pool.end();
   }
 }
 

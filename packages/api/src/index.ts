@@ -8,7 +8,7 @@ import { dbService } from './db';
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || '';
+const DATABASE_URL = process.env.DATABASE_URL || '';
 const SCRAPE_INTERVAL_CRON = process.env.SCRAPE_INTERVAL_CRON || '0 */6 * * *';
 const PURGE_AFTER_DAYS = parseInt(process.env.PURGE_AFTER_DAYS || '30', 10);
 
@@ -88,7 +88,7 @@ app.get('/api/panden/nieuw', async (req: Request, res: Response) => {
 
 app.get('/api/kantoren', async (_req: Request, res: Response) => {
   try {
-    const kantoren = await dbService.getKantoren();
+    const kantoren = await dbService.getAllKantoren();
     res.json(kantoren);
   } catch (error) {
     console.error('Error fetching kantoren:', error);
@@ -141,12 +141,12 @@ app.get('*', (_req: Request, res: Response) => {
 
 async function startServer(): Promise<void> {
   try {
-    if (!MONGODB_URI) {
-      throw new Error('MONGODB_URI not set in .env');
+    if (!DATABASE_URL) {
+      throw new Error('DATABASE_URL not set in .env');
     }
 
-    await dbService.connect(MONGODB_URI);
-    console.log('Connected to MongoDB');
+    await dbService.connect(DATABASE_URL);
+    console.log('Connected to PostgreSQL');
 
     cron.schedule(SCRAPE_INTERVAL_CRON, async () => {
       console.log('Running scheduled scrape...');
