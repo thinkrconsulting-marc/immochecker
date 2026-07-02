@@ -4,8 +4,29 @@ import dotenv from 'dotenv';
 import cron from 'node-cron';
 import path from 'path';
 import { dbService } from './db';
+import { runScrape } from '@immochecker/scraper';
 
 dotenv.config();
+
+// Voorkomt dat er twee scrape-runs tegelijk lopen (cron + handmatige trigger).
+let scrapeBezig = false;
+
+async function voerScrapeUit(bron: string): Promise<void> {
+  if (scrapeBezig) {
+    console.log(`[api] Scrape (${bron}) overgeslagen — er loopt al een scrape`);
+    return;
+  }
+  scrapeBezig = true;
+  console.log(`[api] Scrape gestart (${bron})`);
+  try {
+    await runScrape();
+    console.log(`[api] Scrape voltooid (${bron})`);
+  } catch (error) {
+    console.error(`[api] Scrape mislukt (${bron}):`, error);
+  } finally {
+    scrapeBezig = false;
+  }
+}
 
 const PORT = process.env.PORT || 3000;
 const DATABASE_URL = process.env.DATABASE_URL || '';
@@ -132,6 +153,21 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 
+// Handmatige scrape-trigger (handig voor lokaal testen en on-demand runs).
+app.post('/api/scrape', (_req: Request, res: Response) => {
+  if (scrapeBezig) {
+    return res.status(409).json({ status: 'busy', message: 'Scrape loopt al' });
+  }
+  // Niet awaiten: draai op de achtergrond, geef meteen antwoord.
+  void voerScrapeUit('handmatig');
+  return res.status(202).json({ status: 'gestart' });
+});
+
+// Onbekende /api/*-routes → 404 JSON i.p.v. de SPA-index terugsturen.
+app.use('/api', (_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
 const webDistPath = path.join(__dirname, '../../web/dist');
 app.use(express.static(webDistPath));
 
@@ -148,13 +184,8 @@ async function startServer(): Promise<void> {
     await dbService.connect(DATABASE_URL);
     console.log('Connected to PostgreSQL');
 
-    cron.schedule(SCRAPE_INTERVAL_CRON, async () => {
-      console.log('Running scheduled scrape...');
-      try {
-        console.log('Scrape job would run here');
-      } catch (error) {
-        console.error('Scrape job failed:', error);
-      }
+    cron.schedule(SCRAPE_INTERVAL_CRON, () => {
+      void voerScrapeUit('cron');
     });
 
     cron.schedule('0 3 * * *', async () => {
@@ -177,3 +208,5 @@ async function startServer(): Promise<void> {
 }
 
 startServer().catch(console.error);
+
+

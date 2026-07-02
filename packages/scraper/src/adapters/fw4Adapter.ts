@@ -2,7 +2,12 @@ import { BaseScraperAdapter } from '../baseAdapter';
 import { RuwPand } from '../types';
 
 export class FW4WhiseAdapter extends BaseScraperAdapter {
-  private detailLinkRegex = /(huis|villa|woning|gelijkvloerse-woning|eengezinswoning|appartement|opbrengsteigendom|grond|garage|kantoor|commercieel|gebouw-voor-gemengd-gebruik)-te-koop-in-[a-z0-9-]+\/\d{6,7}/g;
+  // Enkel huistypes matchen — geen appartementen, gronden, garages, kantoren,
+  // commercieel of gemengd gebruik (opdracht: alleen huizen).
+  private detailLinkRegex = /(huis|villa|woning|gelijkvloerse-woning|eengezinswoning|hoeve|bungalow|herenwoning)-te-koop-in-[a-z0-9-]+\/\d{6,7}/g;
+
+  private browser: any = null;
+  private context: any = null;
 
   async scrapeKantoor(): Promise<RuwPand[]> {
     const playwright = await import('playwright');
@@ -31,16 +36,37 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
 
       return allPanden;
     } finally {
-      await browserPage.close();
+      // Sluit page, context én browser om Chromium-proceslekken te vermijden.
+      try {
+        await browserPage.close();
+      } catch {
+        /* ignore */
+      }
+      if (this.context) {
+        try {
+          await this.context.close();
+        } catch {
+          /* ignore */
+        }
+        this.context = null;
+      }
+      if (this.browser) {
+        try {
+          await this.browser.close();
+        } catch {
+          /* ignore */
+        }
+        this.browser = null;
+      }
     }
   }
 
   private async createPage(playwright: any): Promise<any> {
-    const browser = await playwright.chromium.launch();
-    const context = await browser.newContext({
+    this.browser = await playwright.chromium.launch();
+    this.context = await this.browser.newContext({
       userAgent: this.userAgent
     });
-    return await context.newPage();
+    return await this.context.newPage();
   }
 
   private async loadAllProperties(page: any): Promise<void> {
@@ -80,11 +106,18 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
 
       const pageContent = await page.content();
 
-      const titleMatch = pageContent.match(/<h1[^>]*>([^<]+)<\/h1>/);
-      const titel = titleMatch ? titleMatch[1].trim() : 'Unknown';
+      const titelUrl = this.extractGemeente(url); // fallback (gemeente uit URL)
+      const titel =
+        (await this.getTitleFromPage(page)) ||
+        (pageContent.match(/<h1[^>]*>([^<]+)<\/h1>/)
+          ? this.cleanText(pageContent.match(/<h1[^>]*>([^<]+)<\/h1>/)![1])
+          : undefined) ||
+        `Woning te koop in ${titelUrl}`;
 
       const priceMatch = pageContent.match(/€\s*([\d.]+)/);
-      const prijs = priceMatch ? parseInt(priceMatch[1].replace(/\./g, ''), 10) : undefined;
+      const prijs = priceMatch
+        ? parseInt(priceMatch[1].split(',')[0].replace(/\./g, ''), 10)
+        : undefined;
 
       const bedroomsMatch = pageContent.match(/(\d+)\s*slaapkamer/i);
       const slaapkamers = bedroomsMatch ? parseInt(bedroomsMatch[1], 10) : undefined;
@@ -97,7 +130,13 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
 
       const fotos = await this.extractPhotos(page);
 
-      const gemeente = this.extractGemeente(url);
+      // Gemeente: eerst uit titel + URL matchen tegen bekende lijst, dan uit content.
+      const match =
+        this.matchGemeente(`${titel} ${url}`).gemeente
+          ? this.matchGemeente(`${titel} ${url}`)
+          : this.matchGemeente(pageContent);
+      const gemeente = match.gemeente || this.extractGemeente(url);
+      const postcode = match.postcode || '';
       const externe_id = this.extractId(url);
 
       const pand: RuwPand = {
@@ -105,7 +144,7 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
         bron_url: url,
         titel,
         gemeente,
-        postcode: '',
+        postcode,
         prijs,
         slaapkamers,
         woonoppervlakte_m2,
@@ -148,3 +187,5 @@ export class FW4WhiseAdapter extends BaseScraperAdapter {
     return match ? match[1] : url.split('/').pop() || 'unknown';
   }
 }
+
+

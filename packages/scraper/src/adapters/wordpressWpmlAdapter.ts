@@ -88,15 +88,20 @@ export class WordPressWPMLAdapter extends BaseScraperAdapter {
 
       const pageContent = await page.content();
 
-      const titel = await this.extractTitle(page, pageContent);
+      const titel = (await this.getTitleFromPage(page)) || (await this.extractTitle(page, pageContent));
       const prijs = await this.extractPrice(page, pageContent);
       const slaapkamers = await this.extractBedrooms(page, pageContent);
       const woonoppervlakte_m2 = await this.extractArea(page, pageContent);
       const perceel_m2 = await this.extractPlotArea(page, pageContent);
       const epc = await this.extractEPC(page, pageContent);
       const fotos = await this.extractPhotos(page);
-      const gemeente = this.extractMunicipality(pageContent);
-      const postcode = this.extractPostcode(pageContent);
+      // Gemeente/postcode: eerst titel+URL tegen bekende regio-lijst matchen,
+      // dan de paginacontent, met de oude regex-extractie als laatste fallback.
+      const _geo = this.matchGemeente(`${titel} ${url}`).gemeente
+        ? this.matchGemeente(`${titel} ${url}`)
+        : this.matchGemeente(pageContent);
+      const gemeente = _geo.gemeente || this.extractMunicipality(pageContent);
+      const postcode = _geo.postcode || this.extractPostcode(pageContent);
       const externe_id = this.extractId(url);
 
       const pand: RuwPand = {
@@ -136,7 +141,7 @@ export class WordPressWPMLAdapter extends BaseScraperAdapter {
       content.match(/€\s*([\d.,]+)/);
 
     if (priceMatch) {
-      return parseInt(priceMatch[1].replace(/[.,]/g, ''), 10);
+      return parseInt(priceMatch[1].split(',')[0].replace(/\./g, ''), 10);
     }
     return undefined;
   }
@@ -227,3 +232,5 @@ export class WordPressWPMLAdapter extends BaseScraperAdapter {
     return url.split('/').pop() || 'unknown';
   }
 }
+
+

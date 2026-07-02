@@ -6,7 +6,7 @@ import FilterBar from './components/FilterBar';
 import Header from './components/Header';
 
 interface Pand {
-  _id: string;
+  id: number;
   titel: string;
   gemeente: string;
   prijs?: number;
@@ -95,7 +95,7 @@ function App() {
       
       <div className="properties-grid">
         {panden.map((pand) => (
-          <PropertyCard key={pand._id} pand={pand} />
+          <PropertyCard key={pand.id} pand={pand} />
         ))}
       </div>
 
@@ -125,3 +125,5 @@ function App() {
 }
 
 export default App;
+
+
