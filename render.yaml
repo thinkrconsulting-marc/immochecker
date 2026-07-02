@@ -3,9 +3,13 @@ services:
     name: immochecker
     plan: free
     runtime: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build && npx playwright install --with-deps chromium
     startCommand: npm run start
     envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: immochecker-db
+          property: connectionString
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -20,8 +24,7 @@ services:
         value: "Mozilla/5.0 (compatible; ImmocheckerBot/1.0)"
       - key: PURGE_AFTER_DAYS
         value: "30"
-    
-  - type: pserv
-    name: immochecker-db
+
+databases:
+  - name: immochecker-db
     plan: free
-    ipAllowList: []

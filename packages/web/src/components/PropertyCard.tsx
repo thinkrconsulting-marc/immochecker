@@ -2,7 +2,7 @@ import { useState } from 'react';
 import './PropertyCard.css';
 
 interface Pand {
-  _id: string;
+  id: number;
   titel: string;
   gemeente: string;
   prijs?: number;
@@ -102,3 +102,5 @@ function PropertyCard({ pand }: PropertyCardProps) {
 }
 
 export default PropertyCard;
+
+

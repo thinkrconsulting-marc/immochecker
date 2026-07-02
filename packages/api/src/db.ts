@@ -33,21 +33,24 @@ interface GetPandenOptions {
 }
 
 class DatabaseService {
-  private pool: Pool;
+  private pool: Pool | null = null;
 
-  constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL
-    });
+  private getPool(): Pool {
+    if (!this.pool) {
+      throw new Error('DatabaseService not connected. Call connect() first.');
+    }
+    return this.pool;
   }
 
   async connect(databaseUrl: string): Promise<void> {
+    // Pool alleen hier aanmaken (niet in de constructor), zodat DATABASE_URL
+    // gegarandeerd geladen is via dotenv.config() vóór de pool wordt gemaakt.
     this.pool = new Pool({
       connectionString: databaseUrl
     });
 
     try {
-      await this.pool.query('SELECT NOW()');
+      await this.getPool().query('SELECT NOW()');
       console.log('Connected to PostgreSQL');
 
       await this.initializeSchema();
@@ -74,7 +77,7 @@ class DatabaseService {
         slaapkamers INTEGER,
         woonoppervlakte_m2 INTEGER,
         perceel_m2 INTEGER,
-        epc VARCHAR(1),
+        epc VARCHAR(3),
         fotos TEXT[] DEFAULT '{}',
         status VARCHAR(20) DEFAULT 'actief',
         eerst_gezien TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -90,7 +93,7 @@ class DatabaseService {
     `;
 
     try {
-      await this.pool.query(schema);
+      await this.getPool().query(schema);
     } catch (error) {
       console.error('Failed to initialize schema:', error);
     }
@@ -123,19 +126,25 @@ class DatabaseService {
       params.push(...options.kantoor_ids);
     }
 
+    // Count-query op de WHERE-clausule berekenen VOORDAT ORDER BY / LIMIT worden
+    // toegevoegd. Een COUNT(*) met ORDER BY op een niet-geaggregeerde kolom faalt
+    // in PostgreSQL, wat alle listing-endpoints 500 deed geven.
+    const countQuery = query.replace(/SELECT \*/, 'SELECT COUNT(*) as total');
+    const countResult = await this.getPool().query(countQuery, params);
+    const total = parseInt(countResult.rows[0]?.total || '0', 10);
+
     const sortMap: Record<string, string> = {
       prijs_asc: 'prijs ASC NULLS LAST',
       prijs_desc: 'prijs DESC NULLS LAST',
+      nieuwst: 'eerst_gezien DESC',
+      oudst: 'eerst_gezien ASC',
+      // aliassen (backward compatible)
       nieuw: 'eerst_gezien DESC',
       oud: 'eerst_gezien ASC'
     };
 
-    const orderBy = sortMap[options.sort || 'nieuw'] || 'eerst_gezien DESC';
+    const orderBy = sortMap[options.sort || 'nieuwst'] || 'eerst_gezien DESC';
     query += ` ORDER BY ${orderBy}`;
-
-    const countQuery = query.replace(/SELECT \*/, 'SELECT COUNT(*) as total');
-    const countResult = await this.pool.query(countQuery, params);
-    const total = parseInt(countResult.rows[0]?.total || '0', 10);
 
     const page = options.page || 1;
     const limit = options.limit || 24;
@@ -144,7 +153,7 @@ class DatabaseService {
     query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     params.push(limit, offset);
 
-    const result = await this.pool.query(query, params);
+    const result = await this.getPool().query(query, params);
     const panden: PandRow[] = result.rows.map(row => ({
       ...row,
       fotos: Array.isArray(row.fotos) ? row.fotos : [],
@@ -164,7 +173,7 @@ class DatabaseService {
       LIMIT 100
     `;
 
-    const result = await this.pool.query(query);
+    const result = await this.getPool().query(query);
     return result.rows.map(row => ({
       ...row,
       fotos: Array.isArray(row.fotos) ? row.fotos : [],
@@ -181,7 +190,7 @@ class DatabaseService {
       ORDER BY kantoor_naam ASC
     `;
 
-    const result = await this.pool.query(query);
+    const result = await this.getPool().query(query);
     return result.rows;
   }
 
@@ -192,7 +201,7 @@ class DatabaseService {
       ORDER BY eerst_gezien DESC
     `;
 
-    const result = await this.pool.query(query, [kantoorId]);
+    const result = await this.getPool().query(query, [kantoorId]);
     return result.rows.map(row => ({
       ...row,
       fotos: Array.isArray(row.fotos) ? row.fotos : [],
@@ -202,7 +211,7 @@ class DatabaseService {
   }
 
   async syncPanden(kantoorId: number, kantoorNaam: string, panden: any[]): Promise<void> {
-    const client = await this.pool.connect();
+    const client = await this.getPool().connect();
 
     try {
       await client.query('BEGIN');
@@ -258,7 +267,7 @@ class DatabaseService {
       AND laatst_gezien < NOW() - INTERVAL '${days} days'
     `;
 
-    const result = await this.pool.query(query);
+    const result = await this.getPool().query(query);
     return result.rowCount || 0;
   }
 
@@ -277,12 +286,17 @@ class DatabaseService {
     `;
 
     const params = [kantoorId, ...existingIds];
-    await this.pool.query(query, params);
+    await this.getPool().query(query, params);
   }
 
   async disconnect(): Promise<void> {
-    await this.pool.end();
+    if (this.pool) {
+      await this.pool.end();
+      this.pool = null;
+    }
   }
 }
 
 export const dbService = new DatabaseService();
+
+

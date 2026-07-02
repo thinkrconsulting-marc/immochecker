@@ -132,7 +132,8 @@ export class GenericHTMLAdapter extends BaseScraperAdapter {
 
       const pageContent = await page.content();
 
-      const titel = await this.extractTitle(page, pageContent);
+      const titel =
+        (await this.getTitleFromPage(page)) || (await this.extractTitle(page, pageContent));
       if (titel === 'Unknown Property') {
         return null;
       }
@@ -143,8 +144,11 @@ export class GenericHTMLAdapter extends BaseScraperAdapter {
       const perceel_m2 = await this.extractPlotArea(page, pageContent);
       const epc = await this.extractEPC(page, pageContent);
       const fotos = await this.extractPhotos(page);
-      const gemeente = this.extractMunicipality(pageContent);
-      const postcode = this.extractPostcode(pageContent);
+      const _geo = this.matchGemeente(`${titel} ${url}`).gemeente
+        ? this.matchGemeente(`${titel} ${url}`)
+        : this.matchGemeente(pageContent);
+      const gemeente = _geo.gemeente || this.extractMunicipality(pageContent);
+      const postcode = _geo.postcode || this.extractPostcode(pageContent);
       const externe_id = this.extractId(url);
 
       if (!prijs && !slaapkamers && !woonoppervlakte_m2) {
@@ -200,7 +204,7 @@ export class GenericHTMLAdapter extends BaseScraperAdapter {
     for (const pattern of patterns) {
       const match = content.match(pattern);
       if (match) {
-        const price = parseInt(match[1].replace(/[.,]/g, ''), 10);
+        const price = parseInt(match[1].split(',')[0].replace(/\./g, ''), 10);
         if (price > 1000) return price;
       }
     }
@@ -345,3 +349,5 @@ export class GenericHTMLAdapter extends BaseScraperAdapter {
     return url.split('/').pop() || 'unknown';
   }
 }
+
+

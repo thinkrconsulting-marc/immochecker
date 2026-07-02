@@ -18,7 +18,7 @@ echo "✅ Node.js version: $(node -v)"
 if [ ! -f .env ]; then
   echo "⚠️  .env file not found. Creating from .env.example..."
   cp .env.example .env
-  echo "📝 Please edit .env with your MongoDB URI"
+  echo "📝 Please edit .env with your PostgreSQL DATABASE_URL"
   echo "   Then run this script again."
   exit 0
 fi
@@ -56,3 +56,5 @@ echo ""
 echo "To deploy to Railway:"
 echo "  git push"
 echo ""
+
+

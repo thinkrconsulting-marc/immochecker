@@ -83,11 +83,13 @@ export class CMSAssetsAdapter extends BaseScraperAdapter {
       const titleMatch =
         pageContent.match(/<h1[^>]*>([^<]+)<\/h1>/) ||
         pageContent.match(/<title>([^<]+)<\/title>/);
-      const titel = titleMatch ? titleMatch[1].trim() : 'Unknown Property';
+      const titel =
+        (await this.getTitleFromPage(page)) ||
+        (titleMatch ? this.cleanText(titleMatch[1]) : 'Unknown Property');
 
       const priceMatch = pageContent.match(/€\s*([\d.,]+)/);
       const prijs = priceMatch
-        ? parseInt(priceMatch[1].replace(/[.,]/g, ''), 10)
+        ? parseInt(priceMatch[1].split(',')[0].replace(/\./g, ''), 10)
         : undefined;
 
       const bedroomsMatch =
@@ -110,8 +112,13 @@ export class CMSAssetsAdapter extends BaseScraperAdapter {
 
       const fotos = await this.extractPhotos(page);
 
-      const gemeente = this.extractMunicipality(pageContent);
-      const postcode = this.extractPostcode(pageContent);
+      // Gemeente/postcode: eerst titel+URL tegen bekende regio-lijst matchen,
+      // dan de paginacontent, met de oude regex-extractie als laatste fallback.
+      const _geo = this.matchGemeente(`${titel} ${url}`).gemeente
+        ? this.matchGemeente(`${titel} ${url}`)
+        : this.matchGemeente(pageContent);
+      const gemeente = _geo.gemeente || this.extractMunicipality(pageContent);
+      const postcode = _geo.postcode || this.extractPostcode(pageContent);
       const externe_id = this.extractId(url);
 
       const pand: RuwPand = {
@@ -187,3 +194,5 @@ export class CMSAssetsAdapter extends BaseScraperAdapter {
     return slugMatch ? slugMatch[1] : url.split('/').pop() || 'unknown';
   }
 }
+
+
