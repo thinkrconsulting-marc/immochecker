@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: immochecker
+    plan: free
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: SCRAPE_INTERVAL_CRON
+        value: "0 */6 * * *"
+      - key: SCRAPE_CONCURRENCY
+        value: "3"
+      - key: SCRAPE_DELAY_MS
+        value: "1500"
+      - key: USER_AGENT
+        value: "Mozilla/5.0 (compatible; ImmocheckerBot/1.0)"
+      - key: PURGE_AFTER_DAYS
+        value: "30"
+    
+  - type: pserv
+    name: immochecker-db
+    plan: free
+    ipAllowList: []

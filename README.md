@@ -169,50 +169,36 @@ npm run build
 
 ## Deployment
 
-### Railway + PostgreSQL ✅ Ready
+### Render.com + PostgreSQL ✅ Ready
 
-Immochecker is fully configured for Railway deployment with PostgreSQL database. The API server also serves the React frontend as static files.
+Immochecker is fully configured for Render.com deployment with PostgreSQL database.
 
-**See detailed guide**: [RAILWAY_POSTGRESQL.md](RAILWAY_POSTGRESQL.md)
+**See detailed guide**: [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)
 
-**Quick start** (10 minutes):
+**Quick start** (2 minutes):
 
-1. **Go to Railway**: https://railway.app/dashboard
-2. **New Project** → "Deploy from GitHub repo" → Select `immochecker`
-3. **Add PostgreSQL**: Click "+ New" → "Database" → "PostgreSQL"
-4. **Railway auto-links DATABASE_URL** ✅
-5. **Add environment variables** (optional, mostly auto-set):
-   ```
-   PORT=3000
-   NODE_ENV=production
-   ```
-6. **Push to GitHub** to trigger deploy:
-   ```bash
-   git add -A
-   git commit -m "Deploy to Railway"
-   git push origin main
-   ```
+1. **Go to Render**: https://render.com (sign up with GitHub)
+2. **Click**: "New" → "Web Service"
+3. **Select**: `thinkrconsulting-marc/immochecker` repository
+4. **Render auto-reads** `render.yaml` configuration ✅
+5. **Add PostgreSQL**: "New" → "PostgreSQL" (Render links it auto)
+6. **Deploy**: Done! App is live in ~2 minutes 🚀
 
 **Access your app** after deployment:
-- Frontend: https://your-railway-url.railway.app/
-- API: https://your-railway-url.railway.app/api/kantoren
-- Health check: https://your-railway-url.railway.app/api/health
+- Frontend: https://your-render-url.onrender.com/
+- API: https://your-render-url.onrender.com/api/kantoren
+- Health check: https://your-render-url.onrender.com/api/health
 
-**Database**: PostgreSQL runs on Railway automatically with free tier
+**Database**: PostgreSQL auto-created and auto-linked
 
-**Local testing before deployment**:
-```bash
-./deploy.sh    # Validates everything
-PORT=3000 npm run start  # Test locally
-```
+**Cost**: 100% FREE (with free tier limitations - spindown after 15 min inactivity)
 
 ### Deployment Files
 
-- `railway.toml` - Railway configuration
-- `Procfile` - Build/start commands
-- `.env.example` - Environment template (PostgreSQL format)
-- `deploy.sh` - Local validation script
-- `RAILWAY_POSTGRESQL.md` - Complete PostgreSQL deployment guide
+- `render.yaml` - Render configuration (Web + PostgreSQL)
+- `RENDER_DEPLOYMENT.md` - Complete deployment guide
+- `Procfile` - Alternative deployment commands
+- `.env.example` - Environment template
 
 ## Volgende Stappen
 
